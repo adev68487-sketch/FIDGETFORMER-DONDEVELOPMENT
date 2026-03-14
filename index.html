@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="UTF-8">
+    <title>FIDGETFORMER</title>
+    
+
+  </head>
+    
+  <body>
+  <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fidget Platformer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            touch-action: manipulation;
+            background: #020617;
+            overflow: hidden;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        .fidget-btn {
+            transition: all 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            -webkit-tap-highlight-color: transparent;
+        }
+        .fidget-btn.active-click {
+            transform: scale(0.9) translateY(4px);
+            box-shadow: none !important;
+        }
+        .glass-ui {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(12px);
+            border-top: 2px solid rgba(255,255,255,0.05);
+        }
+        #title-screen, #cutscene-overlay, #customizer-screen {
+            background: #020617;
+            z-index: 1000;
+            position: fixed;
+            inset: 0;
+            transition: opacity 0.5s ease;
+        }
+        .slot-card, .color-swatch {
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .slot-card:hover {
+            transform: translateY(-5px);
+            border-color: #6366f1;
+            background: rgba(99, 102, 241, 0.1);
+        }
+        #scanline {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.05) 50%);
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 2000;
+        }
+        .trick-popup {
+            animation: trick-float 1s ease-out forwards;
+        }
+        @keyframes trick-float {
+            0% { transform: translateY(20px); opacity: 0; }
+            20% { transform: translateY(0); opacity: 1; }
+            80% { transform: translateY(-20px); opacity: 1; }
+            100% { transform: translateY(-40px); opacity: 0; }
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen text-white select-none">
+    <div id="scanline"></div>
+
+    <!-- Cutscene Overlay -->
+    <div id="cutscene-overlay" class="flex items-center justify-center p-8 hidden">
+        <div id="cutscene-text" class="text-center text-lg md:text-2xl tracking-tighter max-w-xl leading-relaxed text-indigo-200 font-bold"></div>
+    </div>
+
+    <!-- Customization Screen -->
+    <div id="customizer-screen" class="flex flex-col items-center justify-center p-6 hidden">
+        <h2 class="text-4xl font-black mb-8 italic">CORE COLOR SELECT</h2>
+        <div class="flex flex-wrap justify-center gap-4 mb-8 max-w-md">
+            <button onclick="setPlayerColor('#818cf8')" class="w-12 h-12 rounded-full border-2 border-white/20" style="background: #818cf8"></button>
+            <button onclick="setPlayerColor('#f87171')" class="w-12 h-12 rounded-full border-2 border-white/20" style="background: #f87171"></button>
+            <button onclick="setPlayerColor('#4ade80')" class="w-12 h-12 rounded-full border-2 border-white/20" style="background: #4ade80"></button>
+            <button onclick="setPlayerColor('#fbbf24')" class="w-12 h-12 rounded-full border-2 border-white/20" style="background: #fbbf24"></button>
+            <button onclick="setPlayerColor('#2dd4bf')" class="w-12 h-12 rounded-full border-2 border-white/20" style="background: #2dd4bf"></button>
+            <button onclick="setPlayerColor('#c084fc')" class="w-12 h-12 rounded-full border-2 border-white/20" style="background: #c084fc"></button>
+        </div>
+        <div class="flex flex-col items-center gap-2 mb-10">
+            <span class="text-[10px] text-slate-500 uppercase tracking-widest">Manual Spectrum</span>
+            <input type="color" id="color-wheel" class="w-24 h-24 bg-transparent border-0 cursor-pointer" oninput="setPlayerColor(this.value)">
+        </div>
+        <button onclick="closeCustomizer()" class="px-10 py-4 bg-white text-black font-black uppercase tracking-widest rounded-full hover:scale-105 transition-transform">Save & Exit</button>
+    </div>
+
+    <!-- Title Screen -->
+    <div id="title-screen" class="flex flex-col items-center justify-center p-6 text-center">
+        <div class="mb-8">
+            <h1 class="text-6xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-br from-white to-slate-500">FIDGETFORMER</h1>
+            <p class="text-indigo-500 text-xs tracking-[0.5em] font-bold uppercase mt-2">Haptic Synth Engine v2.1</p>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-5xl mb-8">
+            <div onclick="selectSlot(1)" class="slot-card bg-slate-900/40 p-8 rounded-3xl">
+                <div class="text-[10px] text-slate-500 mb-4 tracking-widest uppercase">Memory Slot 01</div>
+                <div id="slot-1-info" class="text-3xl font-black">Empty</div>
+                <div id="slot-1-meta" class="text-[10px] text-indigo-400/50 mt-4">INITIALIZE UNIT</div>
+            </div>
+            <div onclick="selectSlot(2)" class="slot-card bg-slate-900/40 p-8 rounded-3xl">
+                <div class="text-[10px] text-slate-500 mb-4 tracking-widest uppercase">Memory Slot 02</div>
+                <div id="slot-2-info" class="text-3xl font-black">Empty</div>
+                <div id="slot-2-meta" class="text-[10px] text-indigo-400/50 mt-4">INITIALIZE UNIT</div>
+            </div>
+            <div onclick="selectSlot(3)" class="slot-card bg-slate-900/40 p-8 rounded-3xl">
+                <div class="text-[10px] text-slate-500 mb-4 tracking-widest uppercase">Memory Slot 03</div>
+                <div id="slot-3-info" class="text-3xl font-black">Empty</div>
+                <div id="slot-3-meta" class="text-[10px] text-indigo-400/50 mt-4">INITIALIZE UNIT</div>
+            </div>
+        </div>
+        <button onclick="openCustomizer()" class="text-indigo-400 border border-indigo-400/30 px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-indigo-400 hover:text-white transition-all">Customize Character</button>
+    </div>
+
+    <!-- Game UI -->
+    <div id="game-viewport" class="relative flex-grow w-full overflow-hidden">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="trick-notifier" class="absolute top-1/3 left-1/2 -translate-x-1/2 pointer-events-none z-50"></div>
+
+        <!-- Progress UI -->
+        <div class="absolute top-6 left-6 z-20 flex flex-col gap-1">
+            <div class="flex items-baseline gap-2">
+                <span class="text-[10px] text-indigo-400 font-black">FLOOR</span>
+                <span id="floor-ui" class="text-4xl font-black">0</span>
+            </div>
+            <div class="w-32 h-1 bg-slate-800 rounded-full overflow-hidden">
+                <div id="fuel-bar" class="h-full bg-indigo-500 transition-all duration-300" style="width: 100%"></div>
+            </div>
+        </div>
+
+        <!-- Grav Zip Timer UI -->
+        <div id="zip-timer-ui" class="absolute bottom-10 left-1/2 -translate-x-1/2 z-20 text-center opacity-0 transition-opacity">
+            <div class="text-[10px] text-yellow-400 font-black tracking-widest uppercase mb-1">GRAV-ZIP ACTIVE</div>
+            <div id="zip-timer-bar" class="w-48 h-2 bg-slate-800 rounded-full overflow-hidden border border-yellow-500/30">
+                <div id="zip-fill" class="h-full bg-yellow-400" style="width: 100%"></div>
+            </div>
+        </div>
+
+        <!-- Game Controls Overlay -->
+        <div class="absolute top-6 right-6 z-20 flex flex-col items-end gap-3">
+            <button onclick="backToMenu()" class="bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-400/30 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest backdrop-blur-md transition-all active:scale-95">
+                Quit To Menu
+            </button>
+            <div id="haptic-status" class="bg-white/5 border border-white/10 px-3 py-1 rounded-full text-[10px] text-white/40 uppercase tracking-tighter">
+                Haptic: Syncing...
+            </div>
+        </div>
+
+        <div id="replay-msg" class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 transition-opacity duration-500 z-50 bg-black/40 backdrop-blur-sm">
+            <div class="text-2xl font-black tracking-widest text-white uppercase italic">Critical Failure: Resyncing...</div>
+        </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="glass-ui h-[35%] p-6 flex flex-col items-center justify-center space-y-6">
+        <div class="grid grid-cols-3 gap-4">
+            <div class="col-start-2">
+                <button id="btn-w" class="fidget-btn w-16 h-16 bg-indigo-600 rounded-2xl shadow-[0_6px_0_#3730a3] flex items-center justify-center text-2xl font-black">W</button>
+            </div>
+            <div class="col-start-1 row-start-2">
+                <button id="btn-a" class="fidget-btn w-16 h-16 bg-slate-800 rounded-2xl shadow-[0_6px_0_#1e293b] flex items-center justify-center text-2xl font-black">A</button>
+            </div>
+            <div class="col-start-2 row-start-2">
+                <button id="btn-s" class="fidget-btn w-16 h-16 bg-indigo-900 rounded-2xl shadow-[0_6px_0_#1e1b4b] flex items-center justify-center text-2xl font-black border border-indigo-500/30">S</button>
+            </div>
+            <div class="col-start-3 row-start-2">
+                <button id="btn-d" class="fidget-btn w-16 h-16 bg-slate-800 rounded-2xl shadow-[0_6px_0_#1e293b] flex items-center justify-center text-2xl font-black">D</button>
+            </div>
+        </div>
+        <div class="flex gap-4 items-center">
+            <div class="text-[9px] text-slate-600 font-mono italic uppercase" id="trick-status">System Ready</div>
+            <div class="w-1 h-1 bg-indigo-700 rounded-full animate-pulse"></div>
+            <div id="status-tag" class="text-[9px] text-indigo-500/80 font-mono">SLAM MODULE ACTIVE [S]</div>
+        </div>
+    </div>
+
+    <script>
+        const AudioEngine = (() => {
+            let audioCtx = null;
+            const init = () => { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); };
+            
+            const play = (freq, type, duration, vol = 0.1, slide = 10) => {
+                if (!audioCtx) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(slide, audioCtx.currentTime + duration);
+                gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            };
+
+            return {
+                init,
+                jump: () => play(400, 'square', 0.2),
+                land: () => play(150, 'sine', 0.1, 0.2),
+                click: () => play(800, 'triangle', 0.05, 0.05),
+                zip: () => play(600, 'sawtooth', 0.3, 0.1, 1200),
+                stunt: () => play(1000, 'square', 0.4, 0.1, 400),
+                slam: () => play(200, 'sawtooth', 0.2, 0.3, 50),
+                boost: () => {
+                    play(440, 'sine', 0.1, 0.2, 880);
+                    setTimeout(() => play(660, 'sine', 0.1, 0.2, 1200), 50);
+                },
+                fail: () => {
+                    play(200, 'sawtooth', 0.5);
+                    play(150, 'sawtooth', 0.5);
+                }
+            };
+        })();
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const floorUI = document.getElementById('floor-ui');
+        const fuelBar = document.getElementById('fuel-bar');
+        const hapticStatus = document.getElementById('haptic-status');
+        const trickStatus = document.getElementById('trick-status');
+        const trickNotifier = document.getElementById('trick-notifier');
+        const zipUI = document.getElementById('zip-timer-ui');
+        const zipFill = document.getElementById('zip-fill');
+
+        let currentSlot = 1;
+        let gameActive = false;
+        let width, height;
+
+        const HAPTIC_STYLES = {
+            SOFT: [10], SHARP: [25], HEAVY: [60], 
+            PULSE: [5, 20, 5], DOUBLE: [15, 40, 15],
+            STUNT: [100, 30, 100], SLAM: [80]
+        };
+
+        const state = {
+            floor: 0,
+            maxFloor: 0,
+            hapticMode: 'SOFT',
+            clicks: 0,
+            particles: [],
+            fuel: 100,
+            playerColor: localStorage.getItem('player_color') || '#818cf8',
+            keys: {}
+        };
+
+        const player = {
+            x: 0, y: 0, w: 22, h: 30,
+            vx: 0, vy: 0, jumpsLeft: 2, 
+            trail: [],
+            expression: 'neutral',
+            angle: 0,
+            totalRotation: 0,
+            isRotating: false,
+            isSlamming: false,
+            slamPower: 0,
+            zipTimer: 0,
+            maxZip: 240 // 4 seconds at 60fps
+        };
+
+        const platforms = [];
+        const floorMarkers = [];
+        const GRAVITY = 0.45;
+        const JUMP_FORCE = -10.5;
+        const MOVE_SPEED = 7;
+        const SLAM_FORCE = 20;
+
+        function setPlayerColor(color) {
+            state.playerColor = color;
+            localStorage.setItem('player_color', color);
+            AudioEngine.click();
+        }
+
+        function openCustomizer() {
+            document.getElementById('customizer-screen').classList.remove('hidden');
+        }
+
+        function closeCustomizer() {
+            document.getElementById('customizer-screen').classList.add('hidden');
+        }
+
+        function spawnParticles(x, y, color, count = 8) {
+            for (let i = 0; i < count; i++) {
+                state.particles.push({
+                    x, y,
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: (Math.random() - 0.5) * 8,
+                    life: 1.0,
+                    size: Math.random() * 4 + 2,
+                    color
+                });
+            }
+        }
+
+        function selectSlot(id) {
+            AudioEngine.init();
+            currentSlot = id;
+            const data = localStorage.getItem(`relay_save_${id}`);
+            if (data) {
+                const d = JSON.parse(data);
+                state.maxFloor = d.maxFloor;
+                state.floor = d.currentFloor || 0;
+            } else {
+                state.maxFloor = 0;
+                state.floor = 0;
+            }
+            playCutscene();
+        }
+
+        function playCutscene() {
+            document.getElementById('title-screen').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('title-screen').style.display = 'none';
+                const overlay = document.getElementById('cutscene-overlay');
+                const txt = document.getElementById('cutscene-text');
+                overlay.classList.remove('hidden');
+                overlay.style.opacity = '1';
+
+                const script = ["SYSTEM BOOTING...", "SYNCING KINETICS...", "SLAM PROTOCOL LOADED.", "DESCEND TO ASCEND."];
+                let i = 0;
+                const interval = setInterval(() => {
+                    if (i < script.length) {
+                        txt.innerText = script[i++];
+                        AudioEngine.click();
+                    } else {
+                        clearInterval(interval);
+                        overlay.style.opacity = '0';
+                        setTimeout(() => { 
+                            overlay.classList.add('hidden'); 
+                            setupGame(); 
+                        }, 1000);
+                    }
+                }, 1000);
+            }, 500);
+        }
+
+        function setupGame() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight * 0.65;
+            player.x = width/2; player.y = height - 100;
+            player.vx = 0; player.vy = 0;
+            player.angle = 0; player.totalRotation = 0;
+            player.expression = 'neutral';
+            player.isSlamming = false;
+            player.slamPower = 0;
+            player.zipTimer = 0;
+            platforms.length = 0; floorMarkers.length = 0;
+            
+            floorUI.innerText = state.floor;
+            
+            platforms.push({ x: width/2 - 100, y: height - 50, w: 200, h: 20, type: 'normal', floor: state.floor });
+            for(let i=0; i<15; i++) addPlatform();
+            
+            gameActive = true;
+            requestAnimationFrame(gameLoop);
+        }
+
+        function backToMenu() {
+            gameActive = false;
+            AudioEngine.click();
+            localStorage.setItem(`relay_save_${currentSlot}`, JSON.stringify({ 
+                maxFloor: state.maxFloor, 
+                currentFloor: state.floor 
+            }));
+            updateSlotUI();
+            document.getElementById('title-screen').style.display = 'flex';
+            setTimeout(() => {
+                document.getElementById('title-screen').style.opacity = '1';
+            }, 50);
+        }
+
+        function updateSlotUI() {
+            for(let i=1; i<=3; i++) {
+                const data = localStorage.getItem(`relay_save_${i}`);
+                if (data) {
+                    const parsed = JSON.parse(data);
+                    document.getElementById(`slot-${i}-info`).innerText = `F-${parsed.maxFloor}`;
+                    document.getElementById(`slot-${i}-meta`).innerText = `LAST SYNC: FLOOR ${parsed.currentFloor}`;
+                } else {
+                    document.getElementById(`slot-${i}-info`).innerText = `Empty`;
+                    document.getElementById(`slot-${i}-meta`).innerText = `INITIALIZE UNIT`;
+                }
+            }
+        }
+
+        function addPlatform() {
+            const last = platforms[platforms.length - 1];
+            const isZip = Math.random() > 0.85; 
+            const isGravBoost = Math.random() > 0.94; // Rare boost
+            
+            let newW, newX, newY;
+            if(isZip || isGravBoost) {
+                newW = 35;
+                newX = Math.max(50, Math.min(width - 50, last.x + (Math.random() * 300 - 150)));
+                newY = last.y - (Math.random() * 120 + 80);
+            } else {
+                newW = Math.random() * 60 + 50;
+                newX = Math.max(20, Math.min(width - newW - 20, last.x + (Math.random() * 260 - 130)));
+                newY = last.y - (Math.random() * 80 + 60);
+            }
+
+            const floorLevel = Math.floor(Math.abs(newY - (height - 50)) / 200) + state.floor;
+            platforms.push({ 
+                x: newX, y: newY, w: newW, h: (isZip || isGravBoost) ? 35 : 12, 
+                type: isGravBoost ? 'grav-lift' : (isZip ? 'zip' : 'normal'), 
+                floor: floorLevel,
+                pulse: 0 
+            });
+            
+            if (floorLevel > (platforms[platforms.length-2]?.floor || 0)) floorMarkers.push({ y: newY, val: floorLevel });
+        }
+
+        function popTrick(name) {
+            const el = document.createElement('div');
+            el.className = 'trick-popup text-2xl font-black text-indigo-400 italic tracking-widest';
+            el.innerText = name;
+            trickNotifier.appendChild(el);
+            setTimeout(() => el.remove(), 1000);
+            AudioEngine.stunt();
+            if ('vibrate' in navigator) navigator.vibrate(HAPTIC_STYLES.STUNT);
+        }
+
+        function triggerAction(key) {
+            if (!gameActive) return;
+            const btn = document.getElementById(`btn-${key}`);
+            if (!btn) return;
+            btn.classList.add('active-click');
+            setTimeout(() => btn.classList.remove('active-click'), 100);
+
+            state.clicks++;
+            if (state.clicks % 25 === 0) {
+                const keys = Object.keys(HAPTIC_STYLES);
+                state.hapticMode = keys[Math.floor(Math.random() * keys.length)];
+                hapticStatus.innerText = `Haptic: ${state.hapticMode}`;
+            }
+
+            if (key === 'w' && player.jumpsLeft > 0 && player.zipTimer <= 0) {
+                player.vy = JUMP_FORCE;
+                player.jumpsLeft--;
+                player.isSlamming = false;
+                AudioEngine.jump();
+                player.expression = 'surprised';
+                spawnParticles(player.x + player.w/2, player.y + player.h, state.playerColor, 5);
+                if ('vibrate' in navigator) navigator.vibrate(HAPTIC_STYLES[state.hapticMode]);
+            }
+            if (key === 'a') { 
+                player.vx = -MOVE_SPEED; 
+                player.expression = 'focused'; 
+                AudioEngine.click();
+            }
+            if (key === 'd') { 
+                player.vx = MOVE_SPEED; 
+                player.expression = 'focused'; 
+                AudioEngine.click();
+            }
+            if (key === 's') { 
+                if (Math.abs(player.vy) > 0.5 && player.zipTimer <= 0) {
+                    player.vy = SLAM_FORCE;
+                    player.isSlamming = true;
+                    player.slamPower = 0; 
+                    player.expression = 'focused';
+                    AudioEngine.slam();
+                    if ('vibrate' in navigator) navigator.vibrate(HAPTIC_STYLES.SLAM);
+                    spawnParticles(player.x + player.w/2, player.y, '#ffffff', 3);
+                } else {
+                    AudioEngine.click();
+                }
+            }
+        }
+
+        function update() {
+            if (!gameActive) return;
+            
+            // Handle Grav Zip
+            if (player.zipTimer > 0) {
+                player.zipTimer--;
+                player.vy = -12; // Constant zip upward
+                player.vx *= 0.95;
+                zipFill.style.width = `${(player.zipTimer / player.maxZip) * 100}%`;
+                player.expression = 'surprised';
+                if (Math.random() > 0.5) spawnParticles(player.x + player.w/2, player.y + player.h, '#fbbf24', 2);
+                if (player.zipTimer === 0) {
+                    zipUI.style.opacity = '0';
+                    player.vy = -5; // Small exit boost
+                    player.expression = 'neutral';
+                }
+            } else {
+                player.vy += GRAVITY;
+                player.vx *= 0.88;
+            }
+
+            player.x += player.vx;
+            player.y += player.vy;
+
+            if (player.isSlamming) {
+                player.slamPower += 1;
+                trickStatus.innerText = "KINETIC DESCENT...";
+            }
+
+            if (Math.abs(player.vy) > 2 && !player.isSlamming && player.zipTimer <= 0) {
+                const rotSpeed = player.vx * 0.05;
+                player.angle += rotSpeed;
+                player.totalRotation += Math.abs(rotSpeed);
+                player.isRotating = true;
+                trickStatus.innerText = "Mid-Air Stunt...";
+            } else if (player.zipTimer > 0) {
+                player.angle += 0.2;
+                trickStatus.innerText = "GRAV-ZIP ACTIVE";
+            } else {
+                player.isRotating = false;
+            }
+
+            state.fuel = Math.min(100, state.fuel + 0.1);
+            fuelBar.style.width = `${state.fuel}%`;
+
+            platforms.forEach(p => {
+                p.pulse += 0.1;
+                const px = player.x + player.w/2;
+                const py = player.y + player.h/2;
+                const dist = Math.sqrt(Math.pow(px - (p.x + p.w/2), 2) + Math.pow(py - (p.y + p.h/2), 2));
+
+                if (p.type === 'normal') {
+                    if (player.vy > 0 && player.x + player.w > p.x && player.x < p.x + p.w &&
+                        player.y + player.h >= p.y && player.y + player.h <= p.y + p.h + player.vy) {
+                        
+                        if (player.isSlamming) {
+                            if (player.slamPower > 15) {
+                                popTrick("METEOR STRIKE");
+                                state.fuel = Math.min(100, state.fuel + 30);
+                                spawnParticles(player.x + player.w/2, p.y, '#ffffff', 20);
+                            } else {
+                                popTrick("KINETIC SLAM");
+                                state.fuel = Math.min(100, state.fuel + 10);
+                                spawnParticles(player.x + player.w/2, p.y, '#ffffff', 10);
+                            }
+                            player.isSlamming = false;
+                            player.slamPower = 0;
+                        } else if (player.totalRotation > 18) {
+                             popTrick("1080 SUPERNOVA");
+                             state.fuel = Math.min(100, state.fuel + 40);
+                        } else if (player.totalRotation > 12) {
+                             popTrick("720 ZENITH");
+                             state.fuel = Math.min(100, state.fuel + 20);
+                        } else if (player.totalRotation > 6) {
+                             popTrick("SIDE FLIP");
+                             state.fuel = Math.min(100, state.fuel + 10);
+                        }
+
+                        player.totalRotation = 0;
+                        player.angle = 0;
+                        player.y = p.y - player.h;
+                        player.vy = 0;
+                        trickStatus.innerText = "System Ready";
+
+                        if (player.jumpsLeft < 2) {
+                            player.jumpsLeft = 2;
+                            AudioEngine.land();
+                            player.expression = 'neutral';
+                            spawnParticles(player.x + player.w/2, p.y, '#ffffff', 4);
+                        }
+                        if (p.floor > state.floor) {
+                            state.floor = p.floor;
+                            state.maxFloor = Math.max(state.maxFloor, state.floor);
+                            floorUI.innerText = state.floor;
+                            localStorage.setItem(`relay_save_${currentSlot}`, JSON.stringify({ maxFloor: state.maxFloor, currentFloor: state.floor }));
+                        }
+                    }
+                } else if (p.type === 'zip') {
+                    if (dist < 35 && state.fuel > 15 && player.zipTimer <= 0) {
+                        player.vy = -20;
+                        player.isSlamming = false;
+                        state.fuel -= 15;
+                        AudioEngine.zip();
+                        player.expression = 'surprised';
+                        spawnParticles(p.x + p.w/2, p.y + p.h/2, '#6366f1', 15);
+                    }
+                } else if (p.type === 'grav-lift') {
+                    // Check if player is holding "S" while nearby
+                    if (dist < 50 && (state.keys['s'] || document.getElementById('btn-s').classList.contains('active-click')) && player.zipTimer <= 0) {
+                        player.zipTimer = player.maxZip;
+                        player.isSlamming = false;
+                        zipUI.style.opacity = '1';
+                        AudioEngine.boost();
+                        popTrick("GRAV-ZIP INITIATED");
+                        spawnParticles(p.x + p.w/2, p.y + p.h/2, '#fbbf24', 20);
+                    }
+                }
+            });
+
+            if (player.y < height * 0.4) {
+                const dy = height * 0.4 - player.y;
+                player.y = height * 0.4;
+                platforms.forEach(p => p.y += dy);
+                floorMarkers.forEach(d => d.y += dy);
+            }
+
+            if (platforms[0]?.y > height + 200) { platforms.shift(); addPlatform(); }
+            
+            if (player.y > height + 100) {
+                gameActive = false;
+                player.expression = 'dead';
+                zipUI.style.opacity = '0';
+                AudioEngine.fail();
+                document.getElementById('replay-msg').style.opacity = '1';
+                state.floor = Math.max(0, state.floor - 1);
+                setTimeout(() => { 
+                    if (!gameActive && document.getElementById('title-screen').style.display === 'none') {
+                        document.getElementById('replay-msg').style.opacity = '0'; 
+                        setupGame(); 
+                    } else {
+                        document.getElementById('replay-msg').style.opacity = '0'; 
+                    }
+                }, 1500);
+            }
+
+            if (player.x < -20) player.x = width;
+            if (player.x > width) player.x = -20;
+
+            state.particles.forEach((p, i) => {
+                p.x += p.vx; p.y += p.vy; p.life -= 0.02;
+                if (p.life <= 0) state.particles.splice(i, 1);
+            });
+
+            player.trail.push({x: player.x + player.w/2, y: player.y + player.h/2, a: 0.4});
+            if (player.trail.length > 10) player.trail.shift();
+            player.trail.forEach(t => t.a -= 0.04);
+        }
+
+        function draw() {
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.clearRect(0, 0, width, height);
+
+            floorMarkers.forEach(d => {
+                ctx.fillStyle = 'rgba(255,255,255,0.02)';
+                ctx.font = '900 120px Courier New';
+                ctx.fillText(d.val, 40, d.y + 100);
+                ctx.strokeStyle = 'rgba(99, 102, 241, 0.08)';
+                ctx.beginPath(); ctx.moveTo(0, d.y); ctx.lineTo(width, d.y); ctx.stroke();
+            });
+
+            platforms.forEach(p => {
+                if(p.type === 'normal') {
+                    ctx.fillStyle = '#0f172a';
+                    ctx.beginPath(); ctx.roundRect(p.x, p.y, p.w, p.h, 4); ctx.fill();
+                    ctx.fillStyle = '#4f46e5'; ctx.fillRect(p.x, p.y, p.w, 3);
+                } else if (p.type === 'zip') {
+                    const s = Math.sin(p.pulse) * 5;
+                    ctx.strokeStyle = '#6366f1';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.arc(p.x + p.w/2, p.y + p.h/2, 18 + s, 0, Math.PI*2); ctx.stroke();
+                    ctx.fillStyle = 'rgba(99, 102, 241, 0.2)';
+                    ctx.fill();
+                    ctx.fillStyle = '#6366f1';
+                    ctx.beginPath(); ctx.arc(p.x + p.w/2, p.y + p.h/2, 6, 0, Math.PI*2); ctx.fill();
+                } else if (p.type === 'grav-lift') {
+                    const s = Math.sin(p.pulse * 1.5) * 8;
+                    ctx.strokeStyle = '#fbbf24';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath(); ctx.arc(p.x + p.w/2, p.y + p.h/2, 20 + s, 0, Math.PI*2); ctx.stroke();
+                    ctx.fillStyle = 'rgba(251, 191, 36, 0.3)';
+                    ctx.fill();
+                    // Arrow indicating up
+                    ctx.fillStyle = '#fbbf24';
+                    ctx.beginPath();
+                    ctx.moveTo(p.x + p.w/2, p.y + p.h/2 - 10);
+                    ctx.lineTo(p.x + p.w/2 - 8, p.y + p.h/2 + 5);
+                    ctx.lineTo(p.x + p.w/2 + 8, p.y + p.h/2 + 5);
+                    ctx.fill();
+                    // Hint text
+                    ctx.font = 'bold 8px Courier New';
+                    ctx.fillStyle = 'white';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('HOLD [S]', p.x + p.w/2, p.y + p.h + 5);
+                }
+            });
+
+            state.particles.forEach(p => {
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.life;
+                ctx.fillRect(p.x, p.y, p.size, p.size);
+            });
+            ctx.globalAlpha = 1;
+
+            player.trail.forEach(t => {
+                ctx.fillStyle = player.zipTimer > 0 ? '#fbbf24' : state.playerColor;
+                ctx.globalAlpha = t.a;
+                ctx.beginPath(); ctx.arc(t.x, t.y, 4, 0, Math.PI*2); ctx.fill();
+            });
+            ctx.globalAlpha = 1;
+
+            ctx.save();
+            ctx.translate(player.x + player.w/2, player.y + player.h/2);
+            if (player.isSlamming || player.zipTimer > 0) ctx.scale(0.8, 1.4);
+            ctx.rotate(player.angle);
+            ctx.fillStyle = player.zipTimer > 0 ? '#fbbf24' : state.playerColor;
+            ctx.beginPath(); ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h, 6); ctx.fill();
+            
+            if (player.isSlamming || player.zipTimer > 0) {
+                ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(-player.w/2 - 4, -player.h/2 - 4, player.w + 8, player.h + 8);
+            }
+
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 2;
+            ctx.fillStyle = 'white';
+            const lookX = player.vx * 0.3;
+            const lookY = player.vy * 0.1;
+
+            if (player.expression === 'neutral') {
+                ctx.fillRect(-5 + lookX, -5 + lookY, 3, 3);
+                ctx.fillRect(4 + lookX, -5 + lookY, 3, 3);
+                ctx.beginPath(); ctx.moveTo(-3, 5); ctx.lineTo(3, 5); ctx.stroke();
+            } else if (player.expression === 'surprised') {
+                ctx.beginPath(); ctx.arc(-4 + lookX, -5 + lookY, 3, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(6 + lookX, -5 + lookY, 3, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(0, 6, 2, 0, Math.PI*2); ctx.stroke();
+            } else if (player.expression === 'focused') {
+                ctx.fillRect(-6 + lookX, -4 + lookY, 4, 2);
+                ctx.fillRect(4 + lookX, -4 + lookY, 4, 2);
+                ctx.beginPath(); ctx.moveTo(-3, 4); ctx.lineTo(3, 4); ctx.stroke();
+            } else if (player.expression === 'dead') {
+                ctx.beginPath(); ctx.moveTo(-5, -7); ctx.lineTo(-1, -3); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(-1, -7); ctx.lineTo(-5, -3); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(1, -7); ctx.lineTo(5, -3); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(5, -7); ctx.lineTo(1, -3); ctx.stroke();
+                ctx.beginPath(); ctx.arc(0, 7, 4, Math.PI, 0); ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        function gameLoop() { 
+            if (gameActive) {
+                update(); 
+                draw(); 
+                requestAnimationFrame(gameLoop); 
+            }
+        }
+
+        const map = {'w':'w','arrowup':'w', ' ':'w', 'a':'a','arrowleft':'a', 's':'s','arrowdown':'s','d':'d','arrowright':'d'};
+        window.addEventListener('keydown', e => { 
+            const k = map[e.key.toLowerCase()];
+            if(k) {
+                state.keys[k] = true;
+                if(gameActive) triggerAction(k); 
+            }
+        });
+        window.addEventListener('keyup', e => {
+            const k = map[e.key.toLowerCase()];
+            if(k) state.keys[k] = false;
+        });
+        
+        ['w','a','s','d'].forEach(id => {
+            const el = document.getElementById(`btn-${id}`);
+            el.addEventListener('touchstart', e => { 
+                e.preventDefault(); 
+                state.keys[id] = true;
+                if(gameActive) triggerAction(id); 
+            });
+            el.addEventListener('touchend', e => {
+                e.preventDefault();
+                state.keys[id] = false;
+                el.classList.remove('active-click');
+            });
+            el.addEventListener('mousedown', e => { 
+                if(e.button === 0 && gameActive) triggerAction(id); 
+            });
+        });
+
+        updateSlotUI();
+    </script>
+</body>
+</html>
+    
+  </body>
+  
+</html>
